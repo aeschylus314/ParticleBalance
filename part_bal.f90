@@ -1,16 +1,14 @@
-!C   Name    : part_bal 
-!C   Function: Provides multi-species particle balance by grid zone. Includes total particles,
+!   Name    : part_bal 
+!   Function: Provides multi-species particle balance by grid zone. Includes total particles,
 !		total neutral particles, and total recycling sources for each species.	
-!C   Contains:
-!C   Subroutines  : 	part_bal(NSpecies)
+!   Contains:
+!   Subroutines  : 	part_bal(NSpecies)
 !			plasma_balance
 !			recycling_balance
 !			neutral_balance
-!C   Functions    : None
-!C   Use     : 
-!C   Common blocks: None
-!C   Modules      : None
-!C
+!  
+!   Author: Ian Waters --iwaters@wisc.edu
+!   GitHub Page: https://github.com/aeschylus314/ParticleBalance
 
 
 subroutine part_bal(NSpecies)
@@ -53,6 +51,7 @@ subroutine recycling_balance(NSpecies)
 USE PLASMA_PARAM
 USE PHYSICAL_CELL
 USE SOURCE_V_PL
+USE BOUNDARY_COND
 IMPLICIT NONE
 integer, intent(in) :: NSpecies
 integer :: i, j
@@ -62,13 +61,16 @@ open (314, file = 'Recycling_Balance.dat')
 
 do j=1, NSpecies
 RecTot=0
+
 do i = 1, NC_PL
 RecTot = RecTot+VSOUP0(i,j)*VOLCEL(i)
-
 end do
-write (314, *) 'Total Recycling Source: Species ',j,': ', RecTot, 'Amps'
 
-print*, 'Total Recycling Source: Species ',j,': ', RecTot, 'Amps'
+!RecTot=RecTot*SP_IMP_VOLUME(j) I don't think SP_IMP_VOLUME means what I think it does.
+
+write (314, *) 'Total Recycling Source: Species ',j,': ', RecTot*PFLUX_TOTAL(1), 'Amps'
+
+print*, 'Total Recycling Source: Species ',j,': ', RecTot*PFLUX_TOTAL(1), 'Amps'
 
 end do
 
