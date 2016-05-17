@@ -2,9 +2,8 @@
 !   Function: Provides multi-species particle balance by grid zone. Includes total particles,
 !		total neutral particles, and total recycling sources for each species.	
 !   Contains:
-!   Subroutines  : 	part_bal(NSpecies)
+!   Subroutines  : 	part_bal(NSpecies, NZone)
 !			plasma_balance
-!			recycling_balance
 !			neutral_balance
 !  
 !   Author: Ian Waters --iwaters@wisc.edu
@@ -43,25 +42,13 @@ end do
 open (314, file = 'Plasma_Balance.dat')
 
 ! This nested do loop provides the plasma total particle count per zone and puts it
-! in the second column of the Particle_Array matrix. 
+! in the second column of the Particle_Array matrix and the recycling flux per zone
+! in the third column of the matrix. 
 do j=1, NSpecies	
 	do i = 1, NC_PL
 		do l=0, NZone-1
 			if (IZCELL(i) == l) then
 				Particle_Array(l, 2) = Particle_Array(l, 2) + VOLCEL(i)*DENS0(i,j)
-					
-			endif
-			  
-		end do
-	end do
-end do
-
-! This nested do loop provides the Recycling Flux per zone and puts it
-! in the third column of the Particle_Array matrix. 
-do j=1, NSpecies
-	do i = 1, NC_PL
-		do l=0, NZone-1
-			if (IZCELL(i) == l) then
 				Particle_Array(l, 3) = Particle_Array(l, 3) + VSOUP0(i,j)*VOLCEL(i)*PFLUX_TOTAL(1)
 					
 			endif
