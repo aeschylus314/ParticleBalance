@@ -11,69 +11,79 @@
 !   GitHub Page: https://github.com/aeschylus314/ParticleBalance
 
 
-subroutine part_bal(NSpecies)
+subroutine part_bal(NSpecies, NZone)
 IMPLICIT NONE
 
-integer, intent(in) :: NSpecies !Total number of species in the model
+integer, intent(in) :: NSpecies ! Total number of species in the model
+integer, intent(in) :: NZone    ! Total number of zones in the model 
 
-call plasma_balance(NSpecies)
-call recycling_balance(NSpecies)
+call plasma_balance(NSpecies, NZone)
 
 end subroutine part_bal
 
-subroutine plasma_balance(NSpecies)
-USE PLASMA_PARAM
-USE PHYSICAL_CELL
-IMPLICIT NONE
-integer, intent(in) :: NSpecies
-integer :: i, j
-real :: PTot
-
-open (314, file = 'Plasma_Balance.dat')
-
-do j=1, NSpecies
-PTot=0
-do i = 1, NC_PL
-PTot = PTot + DENS0(i,j)*VOLCEL(i)
-
-end do
-write (314, *) 'Total ions: Species ',j,': ', PTot
-print*, 'Total ions: Species ',j,': ', PTot
-
-end do
-
-close(314)
-
-end subroutine plasma_balance
-
-! DOESN'T WORK AT ALL. FIX
-subroutine recycling_balance(NSpecies)
+subroutine plasma_balance(NSpecies, NZone)
 USE PLASMA_PARAM
 USE PHYSICAL_CELL
 USE SOURCE_V_PL
 USE BOUNDARY_COND
 IMPLICIT NONE
 integer, intent(in) :: NSpecies
-integer :: i, j
-real :: RecTot
+integer, intent(in) :: NZone
+integer :: i, j, k, l
+real :: PTot
+real, dimension (0:NZone-1,4) :: Particle_Array ! Column 1 = Zone # Column 2 = # of plasma particles
+						! Column 3 = Recycling Flux
+						! Column 4 = local tau_p* effective
 
-open (314, file = 'Recycling_Balance.dat')
-
-do j=1, NSpecies
-RecTot=0
-
-do i = 1, NC_PL
-RecTot = RecTot+VSOUP0(i,j)*VOLCEL(i)
+!Initializes Paticle_Array with zeroes and Zone #s 
+do k=0, NZone-1
+	Particle_Array(k,1:4) = (/ k, 0, 0, 0 /)
 end do
 
-!RecTot=RecTot*SP_IMP_VOLUME(j) I don't think SP_IMP_VOLUME means what I think it does.
+open (314, file = 'Plasma_Balance.dat')
 
-write (314, *) 'Total Recycling Source: Species ',j,': ', RecTot*PFLUX_TOTAL(1), 'Amps'
+! This nested do loop provides the plasma total particle count per zone and puts it
+! in the second column of the Particle_Array matrix. 
+do j=1, NSpecies	
+	do i = 1, NC_PL
+		do l=0, NZone-1
+			if (IZCELL(i) == l) then
+				Particle_Array(l, 2) = Particle_Array(l, 2) + VOLCEL(i)*DENS0(i,j)
+					
+			endif
+			  
+		end do
+	end do
+end do
 
-print*, 'Total Recycling Source: Species ',j,': ', RecTot*PFLUX_TOTAL(1), 'Amps'
+! This nested do loop provides the Recycling Flux per zone and puts it
+! in the third column of the Particle_Array matrix. 
+do j=1, NSpecies
+	do i = 1, NC_PL
+		do l=0, NZone-1
+			if (IZCELL(i) == l) then
+				Particle_Array(l, 3) = Particle_Array(l, 3) + VSOUP0(i,j)*VOLCEL(i)*PFLUX_TOTAL(1)
+					
+			endif
+			  
+		end do
+	end do
+end do
 
+! This loop calculates the effective confinement time by zone and puts it
+! in column 4 of Particle_Array Matrix
+do l=0, NZone-1
+	Particle_Array(l,4) = Particle_Array(l,2) / (Particle_Array(l,3)*6.241E+18)
+end do
+
+! Writes a semi-formatted version of the matrix to the file.
+! The Zone #'s would look better if I could figure out how to make them integers in the print out.
+write(314, *) 'Zone #					NTot			FluxTot			Tau_p_Eff'
+
+do l=0, NZone-1
+	write(314, *) 'Zone', Particle_Array(l,1), Particle_Array(l,2), Particle_Array(l,3), Particle_Array(l,4)
 end do
 
 close(314)
 
-end subroutine recycling_balance
+end subroutine plasma_balance
